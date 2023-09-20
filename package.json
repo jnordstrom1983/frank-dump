@@ -1,8 +1,9 @@
 {
   "name": "frank-dump",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "",
   "main": "dist/index.js",
+  "repository": "jnordstrom1983/frank-dump",
   "bin": {
     "frank-dump": "./dist/index.js"
   },
