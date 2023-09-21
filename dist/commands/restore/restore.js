@@ -44,14 +44,36 @@ function restoreContentTypes(client, path) {
                     name: data.name,
                     contentTypeId: data.contentTypeId
                 });
-                yield client.put(`/contenttype/${response.data.contenttype.contentTypeId}`, {
+                restored.push({ oldId: data.contentTypeId, newId: response.data.contenttype.contentTypeId });
+            }
+            catch (ex) {
+                console.log(ex);
+                (0, log_1.log)(`      Failed to restore`);
+            }
+        }
+        for (const file of files) {
+            let json = fs_1.default.readFileSync(`${path}/contenttype/${file}`).toString();
+            let data = JSON.parse(json);
+            const oldId = data.contentTypeId;
+            const newId = restored.find(p => p.oldId === oldId).newId;
+            if (!newId) {
+                (0, log_1.log)(`   Could not find new content type id`);
+                continue;
+            }
+            for (const r of restored) {
+                var re = new RegExp(r.oldId, "g");
+                json = json.replace(re, r.newId);
+            }
+            data = JSON.parse(json);
+            (0, log_1.log)(`  Updating content type settings ${data.contentTypeId}`);
+            try {
+                yield client.put(`/contenttype/${newId}`, {
                     name: data.name,
                     enabled: data.enabled,
                     fields: data.fields,
                     generateSlug: data.generateSlug,
                     hidden: data.hidden
                 });
-                restored.push({ oldId: data.contentTypeId, newId: response.data.contenttype.contentTypeId });
             }
             catch (ex) {
                 console.log(ex);
@@ -103,7 +125,7 @@ function restoreContent(client, path, restoredContentTypes, restoredFolders) {
         const files = fs_1.default.readdirSync(`${path}/content`);
         for (const file of files) {
             const data = JSON.parse(fs_1.default.readFileSync(`${path}/content/${file}`).toString());
-            (0, log_1.log)(`   Restoring ${data.content.contentId}`);
+            (0, log_1.log)(`   Creating content ${data.content.contentId}`);
             try {
                 const newContentTypeId = (_a = restoredContentTypes.find(p => p.oldId === data.content.contentTypeId)) === null || _a === void 0 ? void 0 : _a.newId;
                 if (!newContentTypeId) {
@@ -115,6 +137,29 @@ function restoreContent(client, path, restoredContentTypes, restoredFolders) {
                     "contentId": data.content.contentId
                 };
                 let response = yield client.post("/content", payloadCreate);
+                restored.push({ oldId: data.content.contentId, newId: response.data.contentId });
+            }
+            catch (ex) {
+                console.log(ex);
+                (0, log_1.log)(`      Failed to restore`);
+            }
+        }
+        for (const file of files) {
+            let json = fs_1.default.readFileSync(`${path}/content/${file}`).toString();
+            let data = JSON.parse(json);
+            const oldId = data.content.contentId;
+            const newId = restored.find(p => p.oldId === oldId).newId;
+            if (!newId) {
+                (0, log_1.log)(`   Could not find new content id`);
+                continue;
+            }
+            for (const r of restored) {
+                var re = new RegExp(r.oldId, "g");
+                json = json.replace(re, r.newId);
+            }
+            data = JSON.parse(json);
+            (0, log_1.log)(`   Updating content data ${data.content.contentId}`);
+            try {
                 let payloadUpdate = {
                     status: data.content.status,
                     data: data.contentData
@@ -125,8 +170,7 @@ function restoreContent(client, path, restoredContentTypes, restoredFolders) {
                         payloadUpdate.folderId = newFolderId;
                     }
                 }
-                yield client.put(`/content/${response.data.contentId}`, payloadUpdate);
-                restored.push({ oldId: data.folderId, newId: response.data.contentId });
+                yield client.put(`/content/${newId}`, payloadUpdate);
             }
             catch (ex) {
                 console.log(ex);

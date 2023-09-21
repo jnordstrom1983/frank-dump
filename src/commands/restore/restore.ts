@@ -14,8 +14,6 @@ export async function restore(host : string, spaceId : string, key : string, pat
     const restoredFolders = await restoreFolders(client, path, restoredContentTypes)
     const restoredContentItems = await restoreContent(client, path, restoredContentTypes, restoredFolders);
 
-    
-
 }
 
 async function restoreContentTypes(client : CharleeClient, path : string){
@@ -32,13 +30,6 @@ async function restoreContentTypes(client : CharleeClient, path : string){
                 name : data.name,
                 contentTypeId :  data.contentTypeId
             })
-            await client.put(`/contenttype/${response.data.contenttype.contentTypeId}`,{
-                name : data.name, 
-                enabled : data.enabled,
-                fields : data.fields,
-                generateSlug : data.generateSlug,
-                hidden : data.hidden
-            } )
             restored.push({ oldId : data.contentTypeId, newId : response.data.contenttype.contentTypeId })
         }catch(ex){
             console.log(ex)
@@ -46,7 +37,44 @@ async function restoreContentTypes(client : CharleeClient, path : string){
         }
 
     }
+
+    for(const file of files){
+        let json = fs.readFileSync(`${path}/contenttype/${file}`).toString();
+        let data = JSON.parse(json)
+        const oldId = data.contentTypeId;
+        const newId = restored.find(p=>p.oldId === oldId).newId
+        if(!newId){
+            log(`   Could not find new content type id`)    
+            continue;
+        }
+
+        for(const r of restored){
+            var re = new RegExp(r.oldId, "g");
+            json = json.replace(re, r.newId )
+        }
+        data = JSON.parse(json)
+
+
+
+        log(`  Updating content type settings ${data.contentTypeId}`)
+        try{
+            await client.put(`/contenttype/${newId}`,{
+                name : data.name, 
+                enabled : data.enabled,
+                fields : data.fields,
+                generateSlug : data.generateSlug,
+                hidden : data.hidden
+            } )
+        }catch(ex){
+            console.log(ex)
+            log(`      Failed to restore`)
+        }
+
+    }
     return restored
+
+
+
 
 }
 
@@ -92,7 +120,7 @@ async function restoreContent(client : CharleeClient, path : string, restoredCon
     const files = fs.readdirSync(`${path}/content`)
     for(const file of files){
         const data = JSON.parse(fs.readFileSync(`${path}/content/${file}`).toString())
-        log(`   Restoring ${data.content.contentId}`)
+        log(`   Creating content ${data.content.contentId}`)
         try{
 
             const newContentTypeId = restoredContentTypes.find(p=>p.oldId === data.content.contentTypeId)?.newId
@@ -107,6 +135,36 @@ async function restoreContent(client : CharleeClient, path : string, restoredCon
             }
             let response = await client.post<{  contentId : string}>("/content", payloadCreate)
 
+            restored.push({ oldId : data.content.contentId, newId : response.data.contentId })
+        }catch(ex){
+            console.log(ex)
+            log(`      Failed to restore`)
+        }
+
+    }
+
+    for(const file of files){
+
+        
+
+        let json = fs.readFileSync(`${path}/content/${file}`).toString();
+        let data = JSON.parse(json)
+        const oldId = data.content.contentId;
+        const newId = restored.find(p=>p.oldId === oldId).newId
+        if(!newId){
+            log(`   Could not find new content id`)    
+            continue;
+        }
+
+        for(const r of restored){
+            var re = new RegExp(r.oldId, "g");
+            json = json.replace(re, r.newId )
+        }
+        data = JSON.parse(json)
+        
+        
+        log(`   Updating content data ${data.content.contentId}`)
+        try{
 
             let payloadUpdate : { status : string, folderId? : string, data : any} = {
                 status : data.content.status,
@@ -118,15 +176,16 @@ async function restoreContent(client : CharleeClient, path : string, restoredCon
                     payloadUpdate.folderId = newFolderId;
                 }
             }
-            await client.put(`/content/${response.data.contentId}`,payloadUpdate)
-
-            restored.push({ oldId : data.folderId, newId : response.data.contentId })
+            await client.put(`/content/${newId}`,payloadUpdate)
         }catch(ex){
             console.log(ex)
             log(`      Failed to restore`)
         }
 
     }
+
+
+
     return restored
 
 }
