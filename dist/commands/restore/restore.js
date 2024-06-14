@@ -65,6 +65,10 @@ function restoreContentTypes(client, path) {
                 json = json.replace(re, r.newId);
             }
             data = JSON.parse(json);
+            data.fields.forEach(f => {
+                if (typeof (f.output) === "undefined")
+                    f.output = true;
+            });
             (0, log_1.log)(`  Updating content type settings ${data.contentTypeId}`);
             try {
                 yield client.put(`/contenttype/${newId}`, {
@@ -72,11 +76,11 @@ function restoreContentTypes(client, path) {
                     enabled: data.enabled,
                     fields: data.fields,
                     generateSlug: data.generateSlug,
-                    hidden: data.hidden
+                    hidden: data.hidden,
                 });
             }
             catch (ex) {
-                console.log(ex);
+                console.log(JSON.stringify(ex.response.data.error));
                 (0, log_1.log)(`      Failed to restore`);
             }
         }

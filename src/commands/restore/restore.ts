@@ -55,6 +55,9 @@ async function restoreContentTypes(client : CharleeClient, path : string){
         data = JSON.parse(json)
 
 
+        data.fields.forEach(f=>{
+            if(typeof(f.output)  === "undefined") f.output = true;
+        })
 
         log(`  Updating content type settings ${data.contentTypeId}`)
         try{
@@ -63,10 +66,11 @@ async function restoreContentTypes(client : CharleeClient, path : string){
                 enabled : data.enabled,
                 fields : data.fields,
                 generateSlug : data.generateSlug,
-                hidden : data.hidden
+                hidden : data.hidden,
+                
             } )
         }catch(ex){
-            console.log(ex)
+            console.log(JSON.stringify(ex.response.data.error))
             log(`      Failed to restore`)
         }
 
